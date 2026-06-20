@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aria Escalón · Generador de Disponibilidad</title>
+<meta name="description" content="Genera el reporte comercial de disponibilidad de apartamentos en PDF desde un Excel. Procesamiento 100% local." />
+<style>
+  /* ---- Fuentes de marca ---- */
+  @font-face {
+    font-family: 'Albra';
+    src: url('assets/fonts/Albra-Light.otf') format('opentype');
+    font-weight: 300; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'PP Mori';
+    src: url('assets/fonts/PPMori-Regular.otf') format('opentype');
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'PP Mori';
+    src: url('assets/fonts/PPMori-SemiBold.otf') format('opentype');
+    font-weight: 600; font-style: normal; font-display: swap;
+  }
+
+  :root {
+    --paper:    #f6f3ee;
+    --paper-2:  #efeae1;
+    --card:     #fbfaf7;
+    --ink:      #2c2926;
+    --ink-mid:  #5f5950;
+    --ink-soft: #938b80;
+    --line:     #ddd6cb;
+    --copper:   #a96a3b;
+    --copper-d: #8c5630;
+    --ok:       #4f7a4f;
+    --err:      #a8443a;
+    --shadow:   0 18px 50px -28px rgba(56,42,28,.45);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'PP Mori', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---- Barra superior ---- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 26px 0 22px; border-bottom: 1px solid var(--line);
+  }
+  .topbar img { height: 34px; width: auto; display: block; }
+  .topbar .tag {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Hero ---- */
+  .hero { padding: 52px 0 30px; max-width: 660px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--copper); font-weight: 600; margin: 0 0 14px;
+  }
+  .hero h1 {
+    font-family: 'Albra', Georgia, serif; font-weight: 300;
+    font-size: clamp(34px, 5vw, 48px); line-height: 1.05;
+    margin: 0 0 16px; color: var(--ink); letter-spacing: -.01em;
+  }
+  .hero p { font-size: 15.5px; color: var(--ink-mid); margin: 0; max-width: 56ch; }
+
+  /* ---- Tarjeta de controles ---- */
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px; margin: 18px 0 40px; box-shadow: var(--shadow);
+  }
+  .panel__grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 22px; align-items: stretch; }
+  @media (max-width: 760px) { .panel__grid { grid-template-columns: 1fr; } }
+
+  .dropzone {
+    border: 1.5px dashed #cdbfa9; border-radius: 12px;
+    background: linear-gradient(180deg, #fdfcfa, #f7f3ec);
+    padding: 30px 24px; text-align: center; cursor: pointer;
+    transition: border-color .18s ease, background .18s ease, transform .12s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 188px; outline: none;
+  }
+  .dropzone:hover, .dropzone:focus-visible { border-color: var(--copper); background: #f7f1e8; }
+  .dropzone.is-drag { border-color: var(--copper); background: #f2e9da; transform: scale(.995); }
+  .dropzone__icon {
+    width: 44px; height: 44px; border-radius: 50%; background: #f0e6d6;
+    display: grid; place-items: center; margin-bottom: 14px; color: var(--copper);
+  }
+  .dropzone__icon svg { width: 22px; height: 22px; }
+  .dropzone__title { font-weight: 600; font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+  .dropzone__hint { font-size: 12.5px; color: var(--ink-soft); }
+
+  .side { display: flex; flex-direction: column; gap: 14px; }
+  .field label {
+    display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 7px;
+  }
+  .field input[type="date"] {
+    width: 100%; font-family: inherit; font-size: 14px; color: var(--ink);
+    padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff;
+  }
+  .field input[type="date"]:focus { outline: 2px solid #e2c8a8; border-color: var(--copper); }
+
+  /* Interruptor "una sola página" */
+  .toggle {
+    display: flex; align-items: flex-start; gap: 11px; cursor: pointer;
+    padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; background: #fff;
+  }
+  .toggle:hover { border-color: #d8c6ac; }
+  .toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .toggle__track {
+    flex: 0 0 auto; margin-top: 1px; width: 38px; height: 22px; border-radius: 999px;
+    background: #ddd4c6; position: relative; transition: background .18s ease;
+  }
+  .toggle__track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    transition: transform .18s ease;
+  }
+  .toggle input:checked + .toggle__track { background: var(--copper); }
+  .toggle input:checked + .toggle__track::after { transform: translateX(16px); }
+  .toggle input:focus-visible + .toggle__track { outline: 2px solid #e2c8a8; outline-offset: 2px; }
+  .toggle__txt { font-size: 13px; color: var(--ink); line-height: 1.4; }
+  .toggle__txt small { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  .req {
+    font-size: 12px; color: var(--ink-mid); background: var(--paper-2);
+    border-radius: 9px; padding: 12px 13px; line-height: 1.5;
+  }
+  .req b { color: var(--ink); font-weight: 600; }
+
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+  .btn {
+    font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    padding: 11px 18px; border-radius: 9px; border: 1px solid transparent;
+    transition: background .16s ease, color .16s ease, border-color .16s ease, opacity .16s ease;
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  }
+  .btn--primary { background: var(--copper); color: #fff; }
+  .btn--primary:hover { background: var(--copper-d); }
+  .btn--primary:disabled { opacity: .45; cursor: not-allowed; }
+  .btn--ghost { background: transparent; color: var(--copper); border-color: #d8c6ac; }
+  .btn--ghost:hover { background: #f4ebdd; }
+  .btn--link { background: transparent; color: var(--ink-mid); border-color: var(--line); }
+  .btn--link:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .btn svg { width: 16px; height: 16px; }
+
+  .status {
+    display: none; margin-top: 16px; font-size: 13.5px; padding: 11px 14px;
+    border-radius: 9px; border: 1px solid var(--line); background: #fff;
+  }
+  .status--ok { border-color: #c7dcc4; background: #f1f7ef; color: var(--ok); }
+  .status--error { border-color: #e3c2bd; background: #faefed; color: var(--err); }
+  .status--info { border-color: #ddd6cb; background: #faf7f1; color: var(--ink-mid); }
+
+  /* ---- Workspace (preview) ---- */
+  .workspace { display: none; padding-bottom: 60px; }
+  .workspace.is-active { display: block; }
+
+  .ws-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 18px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .ws-head h2 {
+    font-family: 'Albra', Georgia, serif; font-weight: 300; font-size: 26px;
+    margin: 0; color: var(--ink);
+  }
+
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 26px; }
+  .chip {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+    padding: 9px 14px; display: flex; flex-direction: column; gap: 1px; min-width: 92px;
+  }
+  .chip__k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  .chip__v { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+
+  .preview {
+    position: relative; border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; background: #e9e3d9; box-shadow: var(--shadow);
+  }
+  .preview.is-loading::after {
+    content: 'Generando vista previa…';
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 13px; color: var(--ink-mid); background: rgba(246,243,238,.7);
+  }
+  .preview iframe { width: 100%; height: 82vh; min-height: 560px; border: 0; display: block; background: #fff; }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 22px 0 40px;
+    font-size: 12px; color: var(--ink-soft);
+  }
+  footer b { color: var(--ink-mid); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <img src="assets/logo.png" alt="Aria Escalón" />
+      <span class="tag">Reporte comercial · Disponibilidad</span>
+    </div>
+
+    <section class="hero">
+      <p class="eyebrow">Generador de reporte</p>
+      <h1>Disponibilidad de apartamentos</h1>
+      <p>Sube el Excel de inventario y descarga el PDF comercial, con la identidad de
+         Aria Escalón, listo para que tu fuerza de ventas lo tenga a la mano. Todo se
+         procesa en tu navegador: no se sube nada a ningún servidor.</p>
+    </section>
+
+    <div class="panel">
+      <div class="panel__grid">
+        <div
+          id="dropzone" class="dropzone" role="button" tabindex="0"
+          aria-label="Seleccionar o soltar archivo de Excel">
+          <div class="dropzone__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+            </svg>
+          </div>
+          <div class="dropzone__title">Arrastra tu Excel o haz clic para seleccionar</div>
+          <div class="dropzone__hint">.xlsx, .xls o .csv · se lee la primera hoja</div>
+          <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
+        </div>
+
+        <div class="side">
+          <div class="field">
+            <label for="dateInput">Fecha de actualización</label>
+            <input id="dateInput" type="date" />
+          </div>
+          <label class="toggle" for="singlePage">
+            <input id="singlePage" type="checkbox" checked />
+            <span class="toggle__track" aria-hidden="true"></span>
+            <span class="toggle__txt">Una sola página (PDF continuo)
+              <small>Evita que el reporte se divida en hojas. Ideal para ver y compartir en pantalla.</small>
+            </span>
+          </label>
+          <div class="req">
+            Columnas esperadas: <b>Modelo</b>, <b>Unidad</b>, <b>Nivel</b>,
+            <b>Mts2 Totales</b>, <b>Precio con Bodega</b>. El orden y los acentos no
+            importan; se detectan automáticamente.
+          </div>
+          <div class="btnrow">
+            <button id="sampleBtn" class="btn btn--ghost" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              Ver ejemplo
+            </button>
+            <a id="templateBtn" class="btn btn--link" href="data/ejemplo.xlsx" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+              Descargar plantilla
+            </a>
+          </div>
+        </div>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </div>
+
+    <section id="workspace" class="workspace">
+      <div class="ws-head">
+        <div>
+          <h2>Vista previa del reporte</h2>
+          <div id="summary" class="summary"></div>
+        </div>
+        <button id="downloadBtn" class="btn btn--primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Descargar PDF
+        </button>
+      </div>
+      <div id="preview" class="preview">
+        <iframe id="previewFrame" title="Vista previa del PDF"></iframe>
+      </div>
+    </section>
+
+    <footer>
+      <b>Aria Escalón</b> · Herramienta interna de fuerza de ventas. Procesamiento 100% local en el navegador.
+    </footer>
+  </div>
+
+  <!-- Librerías (vendorizadas, sin CDN) -->
+  <script src="js/lib/xlsx.full.min.js"></script>
+  <script src="js/lib/pdfmake.min.js"></script>
+  <script src="js/lib/aria-assets.js"></script>
+  <!-- Lógica -->
+  <script src="js/report.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

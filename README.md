@@ -18,6 +18,14 @@ sitio estático (ideal para **GitHub Pages**).
 3. Muestra una **vista previa** del reporte y permite **descargar el PDF**
    con tipografías de marca (Albra Book Light + PP Mori) y el logo incrustados.
 
+**Una sola página (PDF continuo):** por defecto el reporte se genera en **una
+sola hoja continua** cuya altura se ajusta automáticamente a la cantidad de datos,
+así no se divide en varias páginas. Es ideal para ver y compartir en pantalla.
+Si prefieres el formato Carta tradicional (varias hojas, mejor para imprimir en
+papel), desactiva el interruptor *«Una sola página»*. Para inventarios enormes que
+excederían el alto máximo de un PDF, la app vuelve automáticamente al formato de
+varias hojas.
+
 ---
 
 ## ▶️ Probarlo en local
